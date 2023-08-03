@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 
 import cv2
 import numpy as np
@@ -6,7 +7,45 @@ import numpy as np
 from files import *
 
 
-def create_thumbnails(
+def annotate(
+    img,
+    boxes,
+    classes,
+    scores,
+    colors,
+    line_width=4,
+    text_comment=None,
+    font_color=(255, 255, 255),
+    font=cv2.FONT_HERSHEY_COMPLEX,
+    rel_coord=False
+):
+    img = img.copy()
+    h, w, _ = img.shape
+    if text_comment:
+        img = cv2.putText(img, str(text_comment), (20, 20),
+                          font, .5, font_color, 1, cv2.LINE_AA)
+    for b, c, s in zip(boxes, classes, scores):
+        if rel_coord:
+            x1 = int(b[0] * w)
+            x2 = int(b[2] * w)
+            y1 = int(b[1] * h)
+            y2 = int(b[3] * h)
+        else:
+            x1 = int(b[0])
+            x2 = int(b[2])
+            y1 = int(b[1])
+            y2 = int(b[3])
+        p1 = (x1, y1)
+        p2 = (x2, y2)
+        img = cv2.rectangle(img, p1, p2, colors[c], line_width)
+        txt = f'{c} {round(s * 100)}%'
+        org = (x1 + 10, y1 + 20)
+        img = cv2.putText(img, txt, org,
+                          font, .5, font_color, 1, cv2.LINE_AA)
+    return img
+
+
+def extract_frames(
     input_folder,
     output_folder,
     video_format='mp4',
@@ -98,11 +137,11 @@ def morph_open(image, kernel_size=5):
 def play(video_path):
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
-        print("Error opening video file")
+        logging.error('cannot open the file')
         return
     while True:
-        ret, frame = cap.read()
-        if not ret:
+        ok, frame = cap.read()
+        if not ok:
             break
         cv2.imshow('Video', frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -112,70 +151,31 @@ def play(video_path):
 
 
 def normalize(img):
-
     img = img.astype(np.float32)
-
     min_ = np.min(img)
     max_ = np.max(img)
-
     if max_ > min_:
         ret = np.clip((img - min_) / (max_ - min_), 0., 1.)
     else:
         ret = img * 0.
-
     return (255 * ret).astype(np.uint8)
 
 
 def iou(box1, box2):
-
     xmin = max(box1[0], box2[0])
     ymin = max(box1[1], box2[1])
     xmax = min(box1[2], box2[2])
     ymax = min(box1[3], box2[3])
-
     if xmin > xmax or ymin > ymax:
         return 0.
-
     box1_area = (box1[2] - box1[0]) * (box1[3] - box1[1])
     box2_area = (box2[2] - box2[0]) * (box2[3] - box2[1])
-
     intersection_area = (xmax - xmin) * (ymax - ymin)
     union_area = box1_area + box2_area - intersection_area
     iou = intersection_area / union_area
-
     assert 0. <= iou <= 1.
-
     return iou
 
-
-def annotate(frame, boxes, classes, scores,
-             colors, line_width=4, frame_idx=None,
-             fclr=(255, 255, 255), font=cv2.FONT_HERSHEY_COMPLEX,
-             rel_coord=True):
-    frame = frame.copy()
-    h, w, _ = frame.shape
-    if frame_idx:
-        frame = cv2.putText(frame, str(frame_idx), (20, 20),
-                            font, .5, fclr, 1, cv2.LINE_AA)
-    for b, c, s in zip(boxes, classes, scores):
-        if rel_coord:
-            x1 = int(b[0] * w)
-            x2 = int(b[2] * w)
-            y1 = int(b[1] * h)
-            y2 = int(b[3] * h)
-        else:
-            x1 = int(b[0])
-            x2 = int(b[2])
-            y1 = int(b[1])
-            y2 = int(b[3])
-        p1 = (x1, y1)
-        p2 = (x2, y2)
-        frame = cv2.rectangle(frame, p1, p2, colors[c], line_width)
-        txt = f'{c} {round(s * 100)}%'
-        org = (x1 + 10, y1 + 20)
-        frame = cv2.putText(frame, txt, org,
-                            font, .5, fclr, 1, cv2.LINE_AA)
-    return frame
 
 
 def non_max_supression(detections, iou_thresh=.5):
