@@ -1,6 +1,7 @@
 import os
 import re
 import shutil
+from pathlib import Path
 
 
 def create_empty_folder(folder_path):
@@ -20,3 +21,28 @@ def add_postfix_to_name(file_path, prefix):
                     prefix + r'\1',
                     file_path)
     return result
+
+
+def clean_names(input):
+    """
+    В указанной папке оставляет в именах файлов только начальные циферки.
+    Пример: '1341 - копия.jpg' -> '1341.jpg'
+    """
+    input = Path(input)
+    for item in input.iterdir():
+        if item.is_file():
+            name = item.name
+            new_name = re.sub(r'(\d+).*\.', r'\1.', name)
+            new_path = item.with_name(new_name)
+            item.rename(new_path)
+
+            
+def add_prefix(input, prefix):
+    "В указанной папке добавляет префикс к именам файлов"
+    input = Path(input)
+    for item in input.iterdir():
+        if item.is_file():
+            filename = item.name
+            new_filename = prefix + filename
+            new_filepath = item.with_name(new_filename)
+            item.rename(new_filepath)
