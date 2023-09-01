@@ -7,6 +7,64 @@ import numpy as np
 from files import *
 
 
+def put_annotated_box(image,
+                      box,
+                      text,
+                      text_args,
+                      text_offset=(0, -20),
+                      color=(0, 255, 0),
+                      thickness=2):
+    p1 = (box[0], box[1])
+    p2 = (box[2], box[3])
+    image_with_box = cv2.rectangle(image, p1, p2, color, thickness)
+    position = (p1[0] + text_offset[0],
+                p1[1] + text_offset[1])
+    image_with_box = put_text(image_with_box, text, position, **text_args)
+    return image_with_box
+
+
+def put_text(image,
+             text,
+             position=(50, 50),
+             font=cv2.FONT_HERSHEY_SIMPLEX,
+             font_scale=1,
+             font_color=(0, 255, 0),
+             font_thickness=2,
+             font_d_thickness=4):
+    image_with_text = cv2.putText(image,
+                                  text,
+                                  position,
+                                  font,
+                                  font_scale,
+                                  (0, 0, 0),
+                                  font_thickness + font_d_thickness)
+    image_with_text = cv2.putText(image_with_text,
+                                  text,
+                                  position,
+                                  font,
+                                  font_scale,
+                                  font_color,
+                                  font_thickness)
+    return image_with_text
+
+
+def logical_iou(mask1, mask2):
+    intersection = np.logical_and(mask1, mask2)
+    union = np.logical_or(mask1, mask2)
+    intersection_count = np.count_nonzero(intersection)
+    union_count = np.count_nonzero(union)
+    iou = intersection_count / union_count if union_count > 0 else 0.0
+    return iou
+
+
+def draw_poly_mask(vertices, width, height):
+    vertices = np.array(vertices)
+    mask = np.zeros((height, width), dtype=np.uint8)
+    cv2.fillPoly(mask, [vertices], color=255)
+    mask = mask.astype(bool)
+    return mask
+
+
 def annotate(
     img,
     boxes,
