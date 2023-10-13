@@ -1,10 +1,35 @@
 import logging
+import time
 from pathlib import Path
 
 import cv2
 import numpy as np
 
 from files import *
+
+
+def measure_execution_time(func):
+    def wrapper(*args, **kwargs):
+        start_time = time.time()
+        result = func(*args, **kwargs)
+        end_time = time.time()
+        elapsed_time = end_time - start_time
+        print(f"{func.__name__} took {elapsed_time} seconds to execute")
+        return result
+    return wrapper
+
+
+def draw_poly(image,
+              vertices,
+              color=(0, 0, 255),
+              thickness=2):
+    for i in range(len(vertices) - 1):
+        p1 = vertices[i]
+        p2 = vertices[i + 1]
+        cv2.line(image, p1, p2, color=color, thickness=thickness)
+    p1 = vertices[-1]
+    p2 = vertices[0]
+    cv2.line(image, p1, p2, color=color, thickness=thickness)
 
 
 def put_annotated_box(image,
