@@ -1,4 +1,7 @@
 # Renames all file with the specified extension recursively, using numbers.
+# Examples:
+#   rename_by_number path/to/video avi mp4
+#   rename_by_number folder/with/images png jpg
 rename_by_numbers() {
     if [ "$#" -ge 2 ]; then
         directory="$1"
@@ -45,7 +48,7 @@ extract_frames() {
         fi
         mkdir -- "$frames_directory"
 
-        ffmpeg -i "$path" -vf "fps=$fps" "$frames_directory/%06d.$image_format"
+        ffmpeg -i "$path" -f image2 "$frames_directory/%06d.$image_format"
     else
         echo "Not enough arguments."
     fi
@@ -67,12 +70,20 @@ extract_frames_recursively() {
             echo "The given path not a directory."
         fi
 
+        if [ -f tmp.sh ]; then
+            rm tmp.sh
+        fi
+        touch tmp.sh
+
         for extension in "${extensions[@]}"; do
             echo "Processing *.$extension ..."
             find "$directory" -type f -name "*.$extension" | while read -r file; do
-                extract_frames "$file" "$fps" "$image_format"
+                echo extract_frames "$file" "$fps" "$image_format" >> tmp.sh
             done
         done
+
+        source tmp.sh
+        rm tmp.sh
     else
         echo "Not enough arguments."
     fi
@@ -103,4 +114,4 @@ extract_frames_from_interval() {
     fi
 }
 
-ffmpeg -i input.mp4 -c copy -map 0 -segment_time 00:20:00 -f segment -reset_timestamps 1 output%03d.mp4
+# ffmpeg -i input.mp4 -c copy -map 0 -segment_time 00:20:00 -f segment -reset_timestamps 1 output%03d.mp4
