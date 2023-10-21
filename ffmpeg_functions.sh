@@ -48,7 +48,7 @@ extract_frames() {
         fi
         mkdir -- "$frames_directory"
 
-        ffmpeg -i "$path" -f image2 "$frames_directory/%06d.$image_format"
+        ffmpeg -i "$path" "$frames_directory/%06d.$image_format"
     else
         echo "Not enough arguments."
     fi
@@ -60,30 +60,22 @@ extract_frames() {
 # stem.
 extract_frames_recursively() {
     if [ "$#" -ge 4 ]; then
-        directory="$1"
+        path=$(readlink -f "$1")
         fps="$2"
         image_format="$3"  # jpg is the default
         shift 3
         extensions=("$@")
 
-        if [ ! -d "$directory" ]; then
-            echo "The given path not a directory."
-        fi
-
+        directory=$(dirname "$path")
         if [ -f tmp.sh ]; then
             rm tmp.sh
         fi
-        touch tmp.sh
-
         for extension in "${extensions[@]}"; do
             echo "Processing *.$extension ..."
             find "$directory" -type f -name "*.$extension" | while read -r file; do
-                echo extract_frames "$file" "$fps" "$image_format" >> tmp.sh
+                echo extract_frames "'""$file""'" "'""$fps""'" "$image_format" >> tmp.sh
             done
         done
-
-        source tmp.sh
-        rm tmp.sh
     else
         echo "Not enough arguments."
     fi
