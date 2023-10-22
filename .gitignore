@@ -2,8 +2,6 @@
 main.py
 data/
 out/
-turnovers/
-tst/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

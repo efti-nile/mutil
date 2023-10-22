@@ -4,16 +4,16 @@
 #   rename_by_number folder/with/images png jpg
 rename_by_numbers() {
     if [ "$#" -ge 2 ]; then
-        directory="$1"
+        local directory="$1"
         shift 1
-        extensions=("$@")  # mp4, txt, ...
+        local extensions=("$@")  # mp4, txt, ...
 
         if [ ! -d "$directory" ]; then
             echo "The given path not a directory."
             return 1
         fi
 
-        count=1
+        local count=1
         for extension in "${extensions[@]}"; do
             extension_count=1
             find "$directory" -type f -name "*.$extension" | while read -r file; do
@@ -34,21 +34,21 @@ rename_by_numbers() {
 # image format (png or jpg)
 extract_frames() {
     if [ "$#" -ge 3 ]; then
-        path=$(readlink -f "$1")
-        fps="$2"  # the fps can be: 10, .02, 5, ...
-        image_format="$3"
+        local path=$(readlink -f "$1")
+        local fps="$2"  # the fps can be: 10, .02, 5, ...
+        local image_format="$3"
 
-        directory=$(dirname "$path")
-        video_name=$(basename "$path")
-        video_stem="${video_name%.*}"
+        local directory=$(dirname "$path")
+        local video_name=$(basename "$path")
+        local video_stem="${video_name%.*}"
 
-        frames_directory="$directory/$video_stem"
+        local frames_directory="$directory/$video_stem"
         if [ -d "$frames_directory" ]; then
             rm -rf -- "$frames_directory"
         fi
         mkdir -- "$frames_directory"
 
-        ffmpeg -i "$path" "$frames_directory/%06d.$image_format"
+        ffmpeg -i "$path" -vf "fps=$fps" "$frames_directory/%06d.$image_format"
     else
         echo "Not enough arguments."
     fi
@@ -60,22 +60,23 @@ extract_frames() {
 # stem.
 extract_frames_recursively() {
     if [ "$#" -ge 4 ]; then
-        path=$(readlink -f "$1")
-        fps="$2"
-        image_format="$3"  # jpg is the default
+        local path=$(readlink -f "$1")
+        local fps="$2"
+        local image_format="$3"
         shift 3
-        extensions=("$@")
+        local extensions=("$@")
 
-        directory=$(dirname "$path")
-        if [ -f tmp.sh ]; then
-            rm tmp.sh
-        fi
+        local directory=$(dirname "$path")
+        rm tmp.sh  # a stupid workaround to deal with ffmpeg misunderstanding
+        touch tmp.sh
         for extension in "${extensions[@]}"; do
             echo "Processing *.$extension ..."
             find "$directory" -type f -name "*.$extension" | while read -r file; do
-                echo extract_frames "'""$file""'" "'""$fps""'" "$image_format" >> tmp.sh
+                echo extract_frames "$file" "$fps" "$image_format" >> tmp.sh
             done
         done
+        source tmp.sh
+        rm tmp.sh
     else
         echo "Not enough arguments."
     fi
