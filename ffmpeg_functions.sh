@@ -1,57 +1,78 @@
 # Renames all file with the specified extension recursively, using numbers.
 # Examples:
-#   rename_by_number path/to/video avi mp4
-#   rename_by_number folder/with/images png jpg
+#   $ rename_by_number path/to/video avi mp4
+#   $ rename_by_number folder/with/images png jpg
 rename_by_numbers() {
     if [ "$#" -ge 2 ]; then
-        local directory="$1"
+        local target_directory="$1"
         shift 1
-        local extensions=("$@")  # mp4, txt, ...
+        local file_extensions=("$@")
 
-        if [ ! -d "$directory" ]; then
-            echo "The given path not a directory."
+        if [ ! -d "$target_directory" ]; then
+            echo "Error: The given path is not a directory."
             return 1
         fi
 
-        local count=1
-        for extension in "${extensions[@]}"; do
-            extension_count=1
-            find "$directory" -type f -name "*.$extension" | while read -r file; do
+        for extension in "${file_extensions[@]}"; do
+            count=1
+            while IFS= read -r -d $'\0' file; do
                 containing_directory=$(dirname "$file")
-                mv -- "$file" "$containing_directory/$count.$extension"
-                ((count++))
-                ((extension_count++))
-            done
-            echo "Renamed $extension_count *.$extension files"
+                mv -- "$file" "$containing_directory/$(printf "%03d" $count).$extension"
+            done < <(find "$target_directory" -type f -name "*.$extension" -print0)
         done
     else
-        echo "Not enough arguments."
+        echo "Usage: rename_by_numbers <folder> <extenstio1> [<extension2>]"
     fi
 }
 
 
 # Extract frames from the specidied video file at the given fps and in the given
 # image format (png or jpg)
+# Examples:
+#   $ extract_frames video.avi 5 png
+#   $ extract_fraems another_video.mp4 .2 jpg
 extract_frames() {
     if [ "$#" -ge 3 ]; then
         local path=$(readlink -f "$1")
-        local fps="$2"  # the fps can be: 10, .02, 5, ...
+        local fps="$2"
         local image_format="$3"
+
+        # Input validation
+        if [ ! -f "$path" ]; then
+            echo "Error: Video file does not exist."
+            return 1
+        fi
 
         local directory=$(dirname "$path")
         local video_name=$(basename "$path")
         local video_stem="${video_name%.*}"
 
         local frames_directory="$directory/$video_stem"
-        if [ -d "$frames_directory" ]; then
-            rm -rf -- "$frames_directory"
+        if [ -e "$frames_directory" ]; then
+            echo "Error: $frames_directory already exists."
+            return 2
         fi
-        mkdir -- "$frames_directory"
+        
+        # Use 'mkdir -p' to create the directory if it doesn't exist
+        mkdir "$frames_directory"
 
-        ffmpeg -i "$path" -vf "fps=$fps" "$frames_directory/%06d.$image_format"
+        # Use '&&' for command sequencing
+        ffmpeg -i "$path" -vf "fps=$fps" "$frames_directory/%06d.$image_format" && \
+        echo "Frames extracted to: $frames_directory"
     else
-        echo "Not enough arguments."
+        echo "Usage: extract_frames <video_file> <frame_rate> <image_format>"
     fi
+}
+
+
+# Encode separate images into a video using libx264
+# Examples:
+#   Encoding 1.jpg, 2.jpg, ... into exp.mp4 at fps=5
+#   $ encode_frames experiment/%d.jpg 5 exp.mp4
+#   Encoding 001.png, 002.png, ... into video.mp4 at fps=.5
+#   $ encode_frames frames/%03d.png .5 video.mp4
+encode_frames() {
+    ffmpeg -y -framerate "$2" -i "$1" -c:v libx264 -crf 24 "$3"
 }
 
 
@@ -82,28 +103,36 @@ extract_frames_recursively() {
     fi
 }
 
-# Extract frames from the specidied video file from the n-th frame to the k-th 
-# frame at the specified fps.
+# Extract frames from the specidied video file from the n-th to the k-th frame
+# at the specified fps.
+# Examples:
+#   $ extract_frames_from_interval video.mp4 200 600
+#   $ extract_frames_from_interval video.mp4 600 1600 png
 extract_frames_from_interval() {
-    if [ "$#" -e 5 ]; then
-        path=$(readlink -f "$1")
-        first_frame="$2"
-        last_frame="$3"
-        fps="$4"
-        frame_extension="${5:-jpg}"
+    if [ "$#" -eq 3 ] || [ "$#" -eq 4 ]; then
+        local path=$(readlink -f "$1")
+        local first_frame="$2"
+        local last_frame="$3"
+        local frame_extension="${4:-jpg}"  # jpg by default
         
-        directory=$(dirname "$path")
-        video_name=$(basename "$path")
-        video_stem="${file_name:%.*}"
-        frames_directory="${directory}/${video_name}"
+        local directory=$(dirname "$path")
+        local video_name=$(basename "$path")
+        local video_stem="${video_name%.*}"
+        local frames_directory="${directory}/${video_stem}"
+
+        if [ -e "$frames_directory" ]; then
+            echo "Error: $frames_directory already exists."
+            return 1
+        fi
+
         mkdir "$frames_directory"
+
         ffmpeg \
             -i "$path" \
-            -vf "select=between(n,${first_frame},${last_frame}" \
-            -vf "fps=$fps" \
+            -vf "select=between(n\,${first_frame}\,${last_frame})" \
             "${frames_directory}/%06d.${frame_extension}"
     else
-        print "Must be 5 arguments."
+        echo "Usage: extract_frames_from_interval video.mp4 100 400"
     fi
 }
 
