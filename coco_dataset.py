@@ -257,34 +257,44 @@ class CocoDataset():
         for k, v in counts.items():
             print(cats[k], v)
 
-    def write_annotated_images(self, output):
-        output = Path(output)
+    def write_annotated_images(self,
+                               output: Path,
+                               draw_boxes=True,
+                               draw_masks=False):
         create_empty_folder(output)
-        cats = {i: self.categories[i]['name'] for i in range(1, len(self.categories) + 1)}
+        cats = {i: self.categories[i]['name']
+                for i in range(1, len(self.categories) + 1)}
         for cat_id in range(1, len(self.categories) + 1):
             cat = cats[cat_id]
             out = output / cat
             out.mkdir()
-            aim = {}
-            for annot in self.coco['annotations']:
-                if annot['category_id'] == cat_id:
-                    if annot['image_id'] not in aim:
-                        aim[annot['image_id']] = [annot]
+            img2anns = {}
+            for ann in self.coco['annotations']:
+                if ann['category_id'] == cat_id:
+                    if ann['image_id'] not in img2anns:
+                        img2anns[ann['image_id']] = [ann]
                     else:
-                        aim[annot['image_id']].append(annot)
-            dir = Path(self.image_dir)
-            for i_id, anns in aim.items():
-                img_fn = self.images[i_id]['file_name']
-                img = cv2.imread(str(dir / img_fn))
+                        img2anns[ann['image_id']].append(ann)
+            image_dir = Path(self.image_dir)
+            for img_id, anns in img2anns.items():
+                img_fn = self.images[img_id]['file_name']
+                img = cv2.imread(str(image_dir / img_fn))
                 for ann in anns:
-                    segmentation = ann['segmentation'][0]
-                    # Convert COCO format to a list of points
-                    points = []
-                    for i in range(0, len(segmentation), 2):
-                        x = segmentation[i]
-                        y = segmentation[i + 1]
-                        points.append([x, y]) 
-                    # Convert the list of points to NumPy array
-                    points = np.array(points, dtype=np.int32)
-                    cv2.polylines(img, [points], isClosed=True, color=(0, 255, 0), thickness=2)
+                    if draw_boxes:
+                        box = ann['bbox']
+                        x, y, w, h = box
+                        p1 = (int(x), int(y))
+                        p2 = (int(x + w), int(y + h))
+                        cv2.rectangle(img, p1, p2, color=(0, 255, 0), thickness=2)
+                    if draw_masks:
+                        segmentation = ann['segmentation'][0]
+                        # Convert COCO format to a list of points
+                        points = []
+                        for i in range(0, len(segmentation), 2):
+                            x = segmentation[i]
+                            y = segmentation[i + 1]
+                            points.append([x, y]) 
+                        # Convert the list of points to NumPy array
+                        points = np.array(points, dtype=np.int32)
+                        cv2.polylines(img, [points], isClosed=True, color=(0, 255, 0), thickness=2)
                 cv2.imwrite(str(out / img_fn), img)
