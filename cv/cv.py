@@ -82,10 +82,23 @@ def logical_iou(mask1, mask2):
     return iou
 
 
-def draw_poly_mask(vertices, width, height):
-    vertices = np.array(vertices)
+def draw_mask_by_poly(vertices, width, height):
+    vertices = np.array(vertices)  # to numpy
+    assert np.issubdtype(vertices.dtype, np.integer)
     mask = np.zeros((height, width), dtype=np.uint8)
     cv2.fillPoly(mask, [vertices], color=255)
+    mask = mask.astype(bool)
+    return mask
+
+
+def draw_mask_by_polys(polys, width, height):
+    polys_np = []
+    for p in polys:  # to numpy
+        p = np.array(p)
+        assert np.issubdtype(p.dtype, np.integer)
+        polys_np.append(p)
+    mask = np.zeros((height, width), dtype=np.uint8)
+    cv2.fillPoly(mask, polys_np, color=255)
     mask = mask.astype(bool)
     return mask
 
