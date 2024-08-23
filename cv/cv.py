@@ -73,6 +73,14 @@ def put_text(image,
     return image_with_text
 
 
+def put_lines(image, text, position=(50, 50), spacing=50, **kwargs):
+    lines = text.split("\n")
+    for i, l in enumerate(lines):
+        pos_adjusted = (position[0], position[1] + (i * spacing))
+        image = put_text(image, l, pos_adjusted, **kwargs)
+    return image
+
+
 def logical_iou(mask1, mask2):
     intersection = np.logical_and(mask1, mask2)
     union = np.logical_or(mask1, mask2)
