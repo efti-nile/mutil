@@ -4,6 +4,12 @@ import shutil
 from pathlib import Path
 
 
+def read_file(file_path: str, **kwargs) -> str:
+    with open(file_path, 'r', **kwargs) as file:
+        content = file.read()
+    return content
+
+
 def create_empty_folder(folder_path):
     if os.path.exists(folder_path):
         shutil.rmtree(folder_path)
